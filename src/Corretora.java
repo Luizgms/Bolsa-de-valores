@@ -1,14 +1,22 @@
 public class Corretora {
-
-    public static void main(String[] args) throws Exception {
-        System.out.println("Hello, World!");
+    String nome;
+    public String getNome() {
+        return nome;
     }
 
-    public void compra(int quant, double val, char[] corretora) {
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public Corretora(String nome){
+        this.nome=nome;
+    }
+
+    public void compra(int quant, double val, String corretora) {
 
     }
 
-    public void venda(int quant, double val, char[] corretora) {
+    public void venda(int quant, double val, String corretora) {
 
     }
 }
