@@ -18,7 +18,7 @@ public class App {
             System.out.println("3 - Listar ações");
             System.out.println("4 - Seguir uma ação");
             System.out.println("0 - Sair\n");
-            System.out.print("Código da operação: ");
+            System.out.print("Selecione uma opção do menu: ");
             op = scan.nextInt();
             scan.nextLine();
 
@@ -49,6 +49,10 @@ public class App {
                     break;
                 }
                 case 4: {
+                    System.out.print("Digite o código da ação: ");
+                    String codigo = scan.next();
+                    corretora.acompanhar(codigo, corretora.getNome());
+                    System.out.println("Acompanhando");
                     break;
                 }
                 case 0:
