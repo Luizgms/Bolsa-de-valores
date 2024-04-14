@@ -12,9 +12,8 @@ public class Corretora {
     private final static String QUEUE_NAME = "BROKER";
     private final static String[] BINDING_KEYS = { "compra.*", "venda.*" };
     private static final String EXCHANGE_NAME = "topic_logs";
-    Channel channel;
     ConnectionFactory factory = new ConnectionFactory();
-
+    
     public char[] getNome() {
         return nome;
     }
@@ -25,13 +24,13 @@ public class Corretora {
 
     public Corretora(char[] nome) throws IOException, TimeoutException {
         this.nome = nome;
-        createChannel();
-        consumeQueue();
+        Channel channel = createChannel();
+        consumeQueue(channel);
     }
 
     public void compra(String ativo, int quant, double val, char[] corretora) throws IOException, TimeoutException {
         try (Connection connection = factory.newConnection();
-                Channel channel = connection.createChannel()) {
+             Channel channel = connection.createChannel()) {
 
             String[] body = { "compra", ativo, "" + quant, "" + val, corretora.toString() };
             channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
@@ -43,7 +42,7 @@ public class Corretora {
 
     public void venda(String ativo, int quant, double val, char[] corretora) throws IOException, TimeoutException {
         try (Connection connection = factory.newConnection();
-                Channel channel = connection.createChannel()) {
+             Channel channel = connection.createChannel()) {
 
             String[] body = { "venda", ativo, "" + quant, "" + val, corretora.toString() };
             channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
@@ -74,17 +73,18 @@ public class Corretora {
         }
     }
 
-    private void createChannel() throws IOException, TimeoutException {
+    private Channel createChannel() throws IOException, TimeoutException {
         factory.setHost(Env.getHost());
         factory.setUsername(Env.getUservhost());
         factory.setPassword(Env.getPassword());
         factory.setVirtualHost(Env.getUservhost());
         Connection connection = factory.newConnection();
-        channel = connection.createChannel();
+        Channel channel = connection.createChannel();
         channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+        return channel;
     }
 
-    private void consumeQueue() throws IOException, TimeoutException {
+    private void consumeQueue(Channel channel) throws IOException, TimeoutException {
         channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
 
         for (String bindingKey : BINDING_KEYS) {
@@ -120,5 +120,5 @@ public class Corretora {
         }
         return words.toString();
     }
-
+    
 }
