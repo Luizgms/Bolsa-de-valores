@@ -12,7 +12,7 @@ public class App {
         Corretora corretora = new Corretora(nome);
         int op = 1;
         while (op != 0) {
-            System.out.println("Menu");
+            System.out.println("\nMenu");
             System.out.println("1 - Comprar ");
             System.out.println("2 - Vender ");
             System.out.println("3 - Listar ações");

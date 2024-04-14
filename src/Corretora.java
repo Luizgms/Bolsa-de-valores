@@ -6,15 +6,14 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-public class Corretora {
+public class Corretora implements Runnable{
     char[] nome;
 
     private final static String QUEUE_NAME = "BROKER";
-    private final static String[] BINDING_KEYS = { "compra.*", "venda.*" };
     private static final String EXCHANGE_NAME = "topic_logs";
-    Channel channel;
     ConnectionFactory factory = new ConnectionFactory();
-
+    Channel channel = createChannel();
+    
     public char[] getNome() {
         return nome;
     }
@@ -25,81 +24,93 @@ public class Corretora {
 
     public Corretora(char[] nome) throws IOException, TimeoutException {
         this.nome = nome;
-        createChannel();
-        consumeQueue();
     }
 
     public void compra(String ativo, int quant, double val, char[] corretora) throws IOException, TimeoutException {
-        try (Connection connection = factory.newConnection();
-                Channel channel = connection.createChannel()) {
+        Thread threadAcompanhar = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    acompanhar(ativo, corretora);
+                    try (Connection connection = factory.newConnection();
+                        Channel channel = connection.createChannel()) {
 
-            String[] body = { "compra", ativo, "" + quant, "" + val, corretora.toString() };
-            channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
+                        String[] body = { "compra", ativo, "" + quant, "" + val, String.valueOf(corretora) };
+                        channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
 
-            channel.basicPublish(EXCHANGE_NAME, "compra." + ativo, null, getMessage(body).getBytes());
-            System.out.println(" [x] Sent '" + "compra." + ativo + "':'" + body + "'");
-        }
+                        channel.basicPublish(EXCHANGE_NAME, "compra." + ativo, null, getMessage(body).getBytes());
+                        System.out.println("\n [x] Sent '" + "compra." + ativo + "':'" + getMessage(body) + "'");
+                    }
+                } catch (IOException | TimeoutException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        threadAcompanhar.start();
     }
 
     public void venda(String ativo, int quant, double val, char[] corretora) throws IOException, TimeoutException {
-        try (Connection connection = factory.newConnection();
-                Channel channel = connection.createChannel()) {
+        Thread threadAcompanhar = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    acompanhar(ativo, corretora);
+                    try (Connection connection = factory.newConnection();
+                        Channel channel = connection.createChannel()) {
 
-            String[] body = { "venda", ativo, "" + quant, "" + val, corretora.toString() };
-            channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
+                        String[] body = { "venda", ativo, "" + quant, "" + val, String.valueOf(corretora) };
+                        channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
 
-            channel.basicPublish(EXCHANGE_NAME, "venda." + ativo, null, getMessage(body).getBytes());
-            System.out.println(" [x] Sent '" + "venda." + ativo + "':'" + body + "'");
-        }
+                        channel.basicPublish(EXCHANGE_NAME, "venda." + ativo, null, getMessage(body).getBytes());
+                        System.out.println("\n [x] Sent '" + "venda." + ativo + "':'" + getMessage(body) + "'");
+                    }
+                } catch (IOException | TimeoutException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        threadAcompanhar.start();
     }
 
     public void acompanhar(String ativo, char[] corretora) throws IOException, TimeoutException {
-        final String[] BINDING_KEYS = { "compra." + ativo, "venda." + ativo };
-        try (Connection connection = factory.newConnection();
-                Channel channel = connection.createChannel()) {
+        Thread threadAcompanhar = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    String[] BINDING_KEYS = { "compra." + ativo, "venda." + ativo };
 
-            channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
+                    channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
 
-            for (String bindingKey : BINDING_KEYS) {
-                channel.queueBind(QUEUE_NAME, EXCHANGE_NAME, bindingKey);
+                    for (String bindingKey : BINDING_KEYS) {
+                        channel.queueBind(QUEUE_NAME, EXCHANGE_NAME, bindingKey);
+                    }
+
+                    System.out.println("\n [*] " + String.valueOf(corretora) + " Waiting for messages in " + ativo + ".");
+
+                    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+                        String message = new String(delivery.getBody(), "UTF-8");
+                        System.out.println("\n [x] Broker Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+                    };
+
+                    channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
+        });
 
-            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                String message = new String(delivery.getBody(), "UTF-8");
-                System.out.println(" [x] Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
-            };
-
-            channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
-            });
-        }
+        threadAcompanhar.start();
     }
 
-    private void createChannel() throws IOException, TimeoutException {
+    private Channel createChannel() throws IOException, TimeoutException {
         factory.setHost(Env.getHost());
         factory.setUsername(Env.getUservhost());
         factory.setPassword(Env.getPassword());
         factory.setVirtualHost(Env.getUservhost());
         Connection connection = factory.newConnection();
-        channel = connection.createChannel();
+        Channel channel = connection.createChannel();
         channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-    }
-
-    private void consumeQueue() throws IOException, TimeoutException {
-        channel.exchangeDeclare(EXCHANGE_NAME, BuiltinExchangeType.TOPIC);
-
-        for (String bindingKey : BINDING_KEYS) {
-            channel.queueBind(QUEUE_NAME, EXCHANGE_NAME, bindingKey);
-        }
-
-        System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
-
-        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            String message = new String(delivery.getBody(), "UTF-8");
-            System.out.println(" [x] Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
-        };
-
-        channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
-        });
+        return channel;
     }
 
     private static String getMessage(String[] strings) {
@@ -121,4 +132,10 @@ public class Corretora {
         return words.toString();
     }
 
+    @Override
+    public void run() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'run'");
+    }
+    
 }
