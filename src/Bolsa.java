@@ -5,18 +5,20 @@ import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Bolsa {
 
     private final static String QUEUE_NAME = "BROKER";
-    private static final String EXCHANGE_NAME = "topic_logs";
-    private static final int NUM_THREADS = 1;
+    private final static String EXCHANGE_NAME = "broker_bolsa";
     private static ConnectionFactory factory = new ConnectionFactory();
     private static Livro livro = new Livro();
 
     public static void main(String[] args)  throws IOException {
+        try {
+            initFactory();
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
         threadRecv.start();
     }
 
@@ -24,7 +26,6 @@ public class Bolsa {
         public void run() {
             try {
                 System.out.println("Inicializando a bolsa...\n");
-                initFactory();
                 Channel channel = createChannel();
                 consumeQueue(channel);
             } catch (IOException | TimeoutException e) {
@@ -59,45 +60,61 @@ public class Bolsa {
         System.out.println(" [*] Bolsa de Valores Waiting for messages in queue BROKER");
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
+            // Tópico recebido
             String message = new String(delivery.getBody(), "UTF-8");
-            System.out.println("\n [x] Bolsa de Valores Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
-            String[] strLivro = new String[5];
+            String topic = delivery.getEnvelope().getRoutingKey();
+            System.out.println("\n [x] Bolsa de Valores Received '" + topic + "':'" + message + "'");
+            // Tratamento da mensagem
+            String[] strMensagem = new String[5];
             if(delivery.getEnvelope().getRoutingKey().startsWith("venda")){
-                strLivro[0] = "venda";
+                strMensagem[0] = "venda";
             } else {
-                strLivro[0] = "compra";
+                strMensagem[0] = "compra";
             }
             String[] aux = message.split(" ");
-            strLivro[1] = aux[0];
-            strLivro[2] = aux[1];
-            strLivro[3] = aux[2];
-            strLivro[4] = aux[3];
-            livro.processarOrdem(strLivro);
+            strMensagem[1] = aux[0];
+            strMensagem[2] = aux[1];
+            strMensagem[3] = aux[2];
+            strMensagem[4] = aux[3];
+            // Enviando tópico recebido para o exchange BOLSADEVALORES
+            sendMessage(strMensagem);
+            // Enviando tópico recebido para o livro de ofertas
+            livro.processarOrdem(strMensagem);
         };
 
         channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
         });
     }
 
-    private ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
+    public static void sendMessage(String[] message) {
+        try {
+            Connection connection = factory.newConnection();
+            Channel sendingChannel = connection.createChannel();
+            sendingChannel.exchangeDeclare("BOLSADEVALORES", BuiltinExchangeType.TOPIC);
+            sendingChannel.basicPublish("BOLSADEVALORES", message[0] + "." + message[1], null, getMessage(message).getBytes());
+            System.out.println("\n [x] Sent '" + message[0] + "." + message[1] + "':'" + getMessage(message) + "'");
+        } catch (IOException | TimeoutException e) {
+            e.printStackTrace();
+        }
+    }
 
-    public void start() throws IOException, TimeoutException {
-        executorService.submit(() -> {
-            try {
-                initFactory();
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-            }
-            try (Connection connection = factory.newConnection();
-                Channel channel = createChannel();) {
-                
-                consumeQueue(channel);
+    private static String getMessage(String[] strings) {
+        if (strings.length < 2)
+            return "Hello World!";
+        return joinStrings(strings, " ", 1);
+    }
 
-                System.out.println(" [*] Bolsa de Valores Waiting for messages in channel BROKER");
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-            }
-        });
+    private static String joinStrings(String[] strings, String delimiter, int startIndex) {
+        int length = strings.length;
+        if (length == 0)
+            return "";
+        if (length < startIndex)
+            return "";
+        StringBuilder words = new StringBuilder(strings[startIndex]);
+        for (int i = startIndex + 1; i < length; i++) {
+            words.append(delimiter).append(strings[i]);
+        }
+        return words.toString();
     }
 
 }

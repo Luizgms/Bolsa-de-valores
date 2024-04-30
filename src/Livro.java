@@ -81,6 +81,7 @@ public class Livro {
         FileWriter fileWriter = new FileWriter("livroDeOfertas.txt", false);
         printOrdemCompra(fileWriter);
         printOrdemVenda(fileWriter);
+        fileWriter.close();
     }
     
     public static void printOrdemVenda(FileWriter fileWriter) {
@@ -91,13 +92,11 @@ public class Livro {
                 for(Integer num : ordensVenda.keySet()) {
                     fileWriter.write(num + " => " + Arrays.toString(ordensVenda.get(num)) + "\n");
                 }
-                fileWriter.close();
             } else {
                 // Arquivo já existe
                 for(Integer num : ordensVenda.keySet()) {
                     fileWriter.write(num + " => " + Arrays.toString(ordensVenda.get(num)) + "\n");
                 }
-                fileWriter.close();
             }
         } catch (IOException e) {
             System.out.println("Erro ao utilizar o arquivo.");
@@ -113,13 +112,11 @@ public class Livro {
                 for(Integer num : ordensCompra.keySet()) {
                     fileWriter.write(num + " => " + Arrays.toString(ordensCompra.get(num)) + "\n");
                 }
-                fileWriter.close();
             } else {
                 // Arquivo já existe
                 for(Integer num : ordensCompra.keySet()) {
                     fileWriter.write(num + " => " + Arrays.toString(ordensCompra.get(num)) + "\n");
                 }
-                fileWriter.close();
             }
         } catch (IOException e) {
             System.out.println("Erro ao utilizar o arquivo.");
