@@ -14,8 +14,9 @@ public class Bolsa {
     private static final String EXCHANGE_NAME = "topic_logs";
     private static final int NUM_THREADS = 1;
     private static ConnectionFactory factory = new ConnectionFactory();
+    private static Livro livro = new Livro();
 
-    public static void main(String[] args) {
+    public static void main(String[] args)  throws IOException {
         threadRecv.start();
     }
 
@@ -60,13 +61,23 @@ public class Bolsa {
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             String message = new String(delivery.getBody(), "UTF-8");
             System.out.println("\n [x] Bolsa de Valores Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+            String[] strLivro = new String[5];
+            if(delivery.getEnvelope().getRoutingKey().startsWith("venda")){
+                strLivro[0] = "venda";
+            } else {
+                strLivro[0] = "compra";
+            }
+            String[] aux = message.split(" ");
+            strLivro[1] = aux[0];
+            strLivro[2] = aux[1];
+            strLivro[3] = aux[2];
+            strLivro[4] = aux[3];
+            livro.processarOrdem(strLivro);
         };
 
         channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
         });
     }
-
-
 
     private ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
 
@@ -75,7 +86,6 @@ public class Bolsa {
             try {
                 initFactory();
             } catch (IOException | TimeoutException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
             try (Connection connection = factory.newConnection();

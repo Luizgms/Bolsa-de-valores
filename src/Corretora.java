@@ -6,7 +6,7 @@ import com.rabbitmq.client.Channel;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-public class Corretora implements Runnable{
+public class Corretora {
     char[] nome;
 
     private final static String QUEUE_NAME = "BROKER";
@@ -30,7 +30,7 @@ public class Corretora implements Runnable{
         Thread threadAcompanhar = new Thread(new Runnable() {
             public void run() {
                 try {
-                    acompanhar(ativo, corretora);
+                    //acompanhar(ativo, corretora);
                     try (Connection connection = factory.newConnection();
                         Channel channel = connection.createChannel()) {
 
@@ -53,7 +53,7 @@ public class Corretora implements Runnable{
         Thread threadAcompanhar = new Thread(new Runnable() {
             public void run() {
                 try {
-                    acompanhar(ativo, corretora);
+                    //acompanhar(ativo, corretora);
                     try (Connection connection = factory.newConnection();
                         Channel channel = connection.createChannel()) {
 
@@ -130,12 +130,6 @@ public class Corretora implements Runnable{
             words.append(delimiter).append(strings[i]);
         }
         return words.toString();
-    }
-
-    @Override
-    public void run() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'run'");
     }
     
 }
